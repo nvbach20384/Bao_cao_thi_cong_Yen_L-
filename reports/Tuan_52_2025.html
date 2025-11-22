@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+  <meta charset="UTF-8">
+  <title>BÁO CÁO KHỐI LƯỢNG THEO NHÀ THẦU</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- XLSX & Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #0054a6;
+      --primary-light: #e3f4ff;
+      --accent-cyan: #00bcd4;
+      --bg: #f3f7fb;
+      --bg-card: #ffffff;
+      --text: #1b2440;
+      --text-muted: #6b7a99;
+      --border: #d3deee;
+    }
+
+    body.dark-mode {
+      --bg: #050914;
+      --bg-card: #0f172a;
+      --text: #e5f0ff;
+      --text-muted: #7b8caf;
+      --border: #1f2937;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, rgba(0,188,212,0.12), transparent 45%),
+                  radial-gradient(circle at bottom right, rgba(0,84,166,0.12), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 18px 18px 20px;
+      box-shadow: 0 18px 45px rgba(15,23,42,0.22);
+      border: 1px solid rgba(255,255,255,0.6);
+    }
+
+    body.dark-mode .container {
+      background: rgba(15,23,42,0.96);
+      border-color: rgba(30,64,175,0.6);
+    }
+
+    header { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+
+    .header-top {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .title-block { max-width:60%; }
+
+    h1 {
+      margin:0 0 4px;
+      font-size:20px;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      color:var(--primary);
+    }
+    body.dark-mode h1 { color:#60a5fa; }
+
+    .subtitle { font-size:12px; color:var(--text-muted); }
+
+    .meta-row {
+      display:flex;
+      gap:16px;
+      font-size:12px;
+      color:var(--text-muted);
+    }
+    .meta-row span label {
+      font-weight:600;
+      color:var(--text);
+      margin-right:4px;
+    }
+
+    .toolbar {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+      gap:6px;
+      margin-top:4px;
+    }
+
+    .btn {
+      border:1px solid var(--border);
+      background:linear-gradient(135deg, #ffffff, #f3f7ff);
+      padding:6px 10px;
+      border-radius:999px;
+      font-size:11px;
+      display:inline-flex;
+      align-items:center;
+      gap:5px;
+      cursor:pointer;
+      color:var(--text);
+      box-shadow:0 2px 5px rgba(15,23,42,0.08);
+      transition:all 0.15s ease-out;
+    }
+    .btn:hover { transform:translateY(-1px); box-shadow:0 4px 8px rgba(15,23,42,0.15); }
+    .btn.primary {
+      background:linear-gradient(135deg,#0054a6,#00bcd4);
+      border-color:transparent;
+      color:#fff;
+    }
+    body.dark-mode .btn {
+      background:linear-gradient(135deg,#0f172a,#020617);
+      color:var(--text);
+      border-color:#1f2937;
+    }
+    body.dark-mode .btn.primary {
+      background:linear-gradient(135deg,#2563eb,#0ea5e9);
+    }
+    .btn input[type="file"] { display:none; }
+    .btn-icon { font-size:14px; }
+
+    .tabs-wrapper {
+      margin-top:16px;
+      background:var(--bg-card);
+      border-radius:16px;
+      border:1px solid var(--border);
+      padding:12px;
+      box-shadow:0 4px 12px rgba(15,23,42,0.06);
+    }
+    body.dark-mode .tabs-wrapper {
+      background:linear-gradient(145deg,rgba(15,23,42,0.96),rgba(17,24,39,0.96));
+    }
+
+    .tabs {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      border-bottom:1px solid var(--border);
+      padding-bottom:6px;
+      margin-bottom:10px;
+    }
+    .tab {
+      border:none;
+      background:transparent;
+      padding:6px 12px;
+      font-size:11px;
+      border-radius:999px;
+      cursor:pointer;
+      color:var(--text-muted);
+      position:relative;
+    }
+    .tab::after {
+      content:"";
+      position:absolute;
+      left:14px;
+      right:14px;
+      bottom:-4px;
+      height:2px;
+      border-radius:999px;
+      background:transparent;
+    }
+    .tab.active {
+      background:rgba(0,84,166,0.08);
+      color:var(--primary);
+      font-weight:600;
+    }
+    .tab.active::after {
+      background:linear-gradient(90deg,var(--primary),var(--accent-cyan));
+    }
+
+    .summary-grid {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .summary-card {
+      position:relative;
+      background:linear-gradient(135deg,rgba(0,188,212,0.12),rgba(0,84,166,0.04));
+      border-radius:16px;
+      border:1px solid var(--border);
+      padding:10px 12px 12px;
+      overflow:hidden;
+    }
+    body.dark-mode .summary-card {
+      background:radial-gradient(circle at top left,rgba(37,99,235,0.22),rgba(15,23,42,0.9));
+    }
+    .summary-card::before {
+      content:"";
+      position:absolute;
+      inset:0;
+      background:radial-gradient(circle at top right,rgba(0,188,212,0.25),transparent 55%);
+      pointer-events:none;
+    }
+    .summary-card > * { position:relative; z-index:1; }
+
+    .summary-label {
+      font-size:11px;
+      color:var(--text-muted);
+      margin-bottom:4px;
+      letter-spacing:0.06em;
+      text-transform:uppercase;
+    }
+    .summary-main-value {
+      font-size:20px;
+      font-weight:700;
+      color:var(--primary);
+      margin-bottom:4px;
+    }
+    body.dark-mode .summary-main-value { color:#bfdbfe; }
+    .summary-subtext { font-size:11px; color:var(--text-muted); }
+
+    .card-subtitle {
+      font-size:11px;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:0.04em;
+      color:var(--text-muted);
+      margin-top:4px;
+      margin-bottom:2px;
+    }
+    .bands-row { margin-top:2px; }
+
+    .details-grid {
+      display:grid;
+      grid-template-columns:minmax(0,1fr);
+      gap:10px;
+      margin-top:4px;
+    }
+
+    .card {
+      background:rgba(255,255,255,0.9);
+      border-radius:14px;
+      border:1px solid var(--border);
+      padding:10px 10px 10px;
+      box-shadow:0 3px 10px rgba(15,23,42,0.06);
+    }
+    body.dark-mode .card {
+      background:rgba(15,23,42,0.94);
+      border-color:#1f2937;
+    }
+
+    .card-title {
+      font-size:12px;
+      font-weight:600;
+      margin-bottom:6px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      color:var(--text);
+    }
+    .card-title span { font-size:11px; font-weight:400; color:var(--text-muted); }
+
+    .badge {
+      display:inline-flex;
+      align-items:center;
+      border-radius:999px;
+      padding:2px 6px;
+      font-size:10px;
+      border:1px solid rgba(148,163,184,0.7);
+      color:var(--text-muted);
+      gap:4px;
+    }
+    .badge-dot {
+      width:6px; height:6px;
+      border-radius:999px;
+      background:#22c55e;
+    }
+
+    .table-wrapper {
+      margin-top:4px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      overflow:hidden;
+      background:rgba(255,255,255,0.95);
+    }
+    body.dark-mode .table-wrapper { background:rgba(15,23,42,0.98); }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+      table-layout:fixed; /* quan trọng để cột ghi chú ăn hết phần dư */
+    }
+
+    thead {
+      background:linear-gradient(135deg,#eff4ff,#e0f7ff);
+    }
+    body.dark-mode thead {
+      background:linear-gradient(135deg,#111827,#020617);
+    }
+
+    th, td {
+      padding:4px 6px;
+      border-bottom:1px solid rgba(210,220,235,0.9);
+      text-align:left;
+      white-space:nowrap;
+    }
+
+    /* Đặt width cố định cho 8 cột đầu, cột 9 (Ghi chú) sẽ ăn hết phần còn lại */
+    .table-main th:nth-child(1),
+    .table-main td:nth-child(1) { width:60px; }   /* Gói thầu */
+    .table-main th:nth-child(2),
+    .table-main td:nth-child(2) { width:150px; }  /* Hạng mục */
+    .table-main th:nth-child(3),
+    .table-main td:nth-child(3) { width:60px; }   /* Đơn vị */
+    .table-main th:nth-child(4),
+    .table-main td:nth-child(4),
+    .table-main th:nth-child(5),
+    .table-main td:nth-child(5),
+    .table-main th:nth-child(6),
+    .table-main td:nth-child(6),
+    .table-main th:nth-child(7),
+    .table-main td:nth-child(7),
+    .table-main th:nth-child(8),
+    .table-main td:nth-child(8) { width:80px; text-align:right; }
+
+    /* Cột 9: bỏ padding phải, cho chiếm full và có thanh trượt ngang */
+    .table-main th:nth-child(9),
+    .table-main td:nth-child(9) { padding-right:0; }
+
+    .note-cell {
+      display:block;
+      width:100%;
+      white-space:nowrap;
+      overflow-x:auto;
+      overflow-y:hidden;
+      box-sizing:border-box;
+    }
+
+    tbody tr:nth-child(even) { background:rgba(248,250,252,0.9); }
+    body.dark-mode tbody tr:nth-child(even) { background:rgba(15,23,42,0.9); }
+    tbody tr:hover { background:rgba(219,234,254,0.75); }
+    body.dark-mode tbody tr:hover { background:rgba(30,64,175,0.35); }
+
+    .filters-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+      font-size:11px;
+      margin-bottom:6px;
+      color:var(--text-muted);
+    }
+    .filters-row label {
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+    }
+
+    select {
+      font-size:11px;
+      padding:3px 6px;
+      border-radius:8px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.95);
+      color:var(--text);
+    }
+    body.dark-mode select {
+      background:#020617;
+      color:var(--text);
+    }
+
+    .chip {
+      font-size:10px;
+      border-radius:999px;
+      padding:2px 7px;
+      border:1px solid rgba(148,163,184,0.7);
+      color:var(--text-muted);
+      margin-left:4px;
+    }
+
+    .chart-split { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+    .chart-half { flex:1 1 0; min-width:140px; height:180px; position:relative; }
+    .chart-half canvas { width:100%; height:100%; }
+
+    .chart-legend {
+      font-size:10px;
+      color:var(--text-muted);
+      margin-top:4px;
+      display:flex;
+      justify-content:flex-start;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .legend-item { display:inline-flex; align-items:center; gap:4px; }
+    .legend-color { width:10px; height:10px; border-radius:3px; }
+
+    .tag {
+      display:inline-flex;
+      align-items:center;
+      border-radius:999px;
+      padding:2px 6px;
+      font-size:10px;
+      border:1px solid transparent;
+      gap:4px;
+    }
+    .tag-open {
+      background:rgba(248,113,113,0.08);
+      border-color:rgba(248,113,113,0.5);
+      color:#b91c1c;
+    }
+    .tag-progress {
+      background:rgba(251,191,36,0.08);
+      border-color:rgba(251,191,36,0.5);
+      color:#92400e;
+    }
+    .tag-closed {
+      background:rgba(52,211,153,0.08);
+      border-color:rgba(52,211,153,0.5);
+      color:#065f46;
+    }
+
+    @media (max-width:960px) {
+      .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .details-grid { grid-template-columns:1fr; }
+      .title-block { max-width:100%; }
+    }
+    @media (max-width:720px) {
+      .summary-grid { grid-template-columns:1fr; }
+      .meta-row { flex-direction:column; gap:4px; }
+      .toolbar { justify-content:flex-start; }
+    }
+
+    @media print {
+      body { background:#ffffff; padding:0; }
+      .container { box-shadow:none; border-radius:0; border:none; }
+      .toolbar, #btnTheme { display:none !important; }
+      .tabs-wrapper { border:none; box-shadow:none; }
+      .tab { border-radius:0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-top">
+        <div class="title-block">
+          <h1 contenteditable="true">BÁO CÁO KHỐI LƯỢNG THEO NHÀ THẦU</h1>
+          <div class="subtitle">
+            Báo cáo tổng hợp khối lượng thực hiện, tiến độ hợp đồng và tình trạng vướng mắc theo từng nhà thầu.
+          </div>
+        </div>
+        <div class="meta">
+          <div class="meta-row">
+            <span><label>Người báo cáo:</label> <span contenteditable="true" id="reportAuthor">________________</span></span>
+          </div>
+          <div class="meta-row">
+            <span><label>Ngày báo cáo:</label> <span id="reportDate">22/11/2025</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <label class="btn primary">
+          <span class="btn-icon">📂</span> Nhập Excel
+          <input type="file" id="excelFile" accept=".xlsx,.xls">
+        </label>
+        <button class="btn" id="btnExportExcel"><span class="btn-icon">⬇</span> Xuất Excel</button>
+        <button class="btn" id="btnExportPdf"><span class="btn-icon">📄</span> Xuất PDF</button>
+        <button class="btn" id="btnExportHtml"><span class="btn-icon">🧷</span> Xuất HTML tĩnh</button>
+        <button class="btn" id="btnTheme"><span class="btn-icon">☀</span> Light / Dark</button>
+      </div>
+    </header>
+
+    <div class="tabs-wrapper">
+      <div id="tabs" class="tabs"><button class="tab active">Tổng Quan - Hồ sơ</button><button class="tab">SEEN</button><button class="tab">Nhà thầu 1</button><button class="tab">Nhà thầu 2</button><button class="tab">Nhà thầu 3</button><button class="tab">Nhà thầu 4</button><button class="tab">Nhà thầu 5</button></div>
+      <div id="contractor-content"><div class="summary-grid"><div class="summary-card"><div class="summary-label">Tiến độ hợp đồng</div><div class="summary-main-value">37.8%</div></div><div class="summary-card"><div class="summary-label">Tiến độ hồ sơ</div><div class="summary-main-value">2/6 hồ sơ hoàn thành</div><div class="summary-subtext">Đang xử lý: <strong>2</strong> &nbsp;|&nbsp; Chưa hoàn thành: <strong>2</strong></div></div></div><h2 style="font-size:14px;margin:12px 4px 6px;">Tổng quan tiến độ hợp đồng</h2><div class="table-wrapper"><table class="table-main"><thead><tr><th>STT</th><th>Nhà thầu</th><th>Gói thầu</th><th>Tiến độ HĐ (ngày)</th><th>Ngày khởi công</th><th>Ngày kết thúc</th><th>Ngày thực hiện</th><th>Ngày còn lại</th><th>Tỷ lệ hoàn thành</th></tr></thead><tbody><tr><td>1</td><td>SEEN</td><td>GT01</td><td style="text-align:right;">365</td><td>12/12/2024</td><td>12/12/2025</td><td style="text-align:right;">345</td><td style="text-align:right;">20</td><td style="text-align:right;">20%</td></tr><tr><td>2</td><td>Nhà thầu 1</td><td>GT02</td><td style="text-align:right;">240</td><td>12/12/2024</td><td>09/08/2025</td><td style="text-align:right;">345</td><td style="text-align:right;">-105</td><td style="text-align:right;">39.6%</td></tr><tr><td>3</td><td>Nhà thầu 2</td><td>GT03</td><td style="text-align:right;">240</td><td>12/12/2024</td><td>09/08/2025</td><td style="text-align:right;">345</td><td style="text-align:right;">-105</td><td style="text-align:right;">39.6%</td></tr><tr><td>4</td><td>Nhà thầu 3</td><td>GT04</td><td style="text-align:right;">240</td><td>12/12/2024</td><td>09/08/2025</td><td style="text-align:right;">345</td><td style="text-align:right;">-105</td><td style="text-align:right;">39.6%</td></tr><tr><td>5</td><td>Nhà thầu 4</td><td>GT05</td><td style="text-align:right;">240</td><td>12/12/2024</td><td>09/08/2025</td><td style="text-align:right;">345</td><td style="text-align:right;">-105</td><td style="text-align:right;">39.6%</td></tr><tr><td>6</td><td>Nhà thầu 5</td><td>GT06</td><td style="text-align:right;">240</td><td>12/12/2024</td><td>09/08/2025</td><td style="text-align:right;">345</td><td style="text-align:right;">-105</td><td style="text-align:right;">48.2%</td></tr></tbody></table></div><h2 style="font-size:14px;margin:16px 4px 6px;">Tiến độ hồ sơ</h2><div class="table-wrapper"><table class="table-main"><thead><tr><th>STT</th><th>Tên hồ sơ</th><th>Ngày trình duyệt</th><th>Tình trạng</th><th>Ngày phê duyệt</th></tr></thead><tbody><tr><td>1</td><td>Trạm trộn bê tông xi măng Toàn phát</td><td>22/11/2024</td><td>Đang xử lý</td><td></td></tr><tr><td>2</td><td>Trạm trộn bê tông nhựa Toàn phát</td><td>22/11/2024</td><td>Ý kiến lần 1</td><td></td></tr><tr><td>3</td><td>Mỏ cung cấp đá Lan Chín</td><td>22/11/2024</td><td>Đã hoàn thành</td><td>12/05/2024</td></tr><tr><td>4</td><td>Mỏ cung cấp base Thành công</td><td>22/11/2024</td><td>Ý liến lần 2</td><td></td></tr><tr><td>5</td><td>Nhà cung cấp thép</td><td>22/11/2024</td><td>Đang xử lý</td><td></td></tr><tr><td>6</td><td>Nhà cung cấp cống AMACCAO</td><td>22/11/2024</td><td>Đã hoàn thành</td><td>12/05/2024</td></tr></tbody></table></div></div>
+    </div>
+  </div>
+
+  <script id="embedded-data-json" type="application/json">{"contractors":{"SEEN":{"reportItems":[{"contractor":"SEEN","pkg":"GT01","item":"Bể gom nước thải","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Cụm bể xử lý","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":"dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd"},{"contractor":"SEEN","pkg":"GT01","item":"Hồ sự cố","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Mương quan trắc nước thải","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Bể chứa","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Sân đường, vỉa hè","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Cổng, tường rào","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"San nền","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Thoát nước mưa","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":"dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd"},{"contractor":"SEEN","pkg":"GT01","item":"Nhà bảo vệ","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Nhà ép bùn + kho chất thải nguy hại + nhà máy thổi khí","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Nhà để xe","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Nhà đặt máy phát điện","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Nhà điều hành","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Cảnh quan, và cây xanh","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Lắp đặtđường ống công nghệ","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""},{"contractor":"SEEN","pkg":"GT01","item":"Lắp đặt thiết bị","unit":"%","contractQty":100,"prevCum":0,"thisWeek":20,"cum":20,"pct":20,"note":""}],"issues":[{"item":"Đường tạm","issue":"Tại vj trí xây dựng bể nước chưa giải phóng mặt bằng 1 lô đất","proposal":"kiến nghị bàn giao mặt bằng vào trước ngày 25/12/2025","dateRaised":"20/11/2027","status":"Đang xử lý","owner":"GPMB","dueDate":"27/12/2027"},{"item":"bể nước","issue":"chưa có nhà thầu để thi công","proposal":"sớm đấu thầu để có đơn vị thi công","dateRaised":"20/11/2028","status":"Hoàn thành","owner":"Ban đầu tư","dueDate":"27/12/2028"}]},"Nhà thầu 1":{"reportItems":[{"contractor":"Nhà thầu 1","pkg":"GT02","item":"San nền","unit":"m3","contractQty":80,"prevCum":5,"thisWeek":20,"cum":25,"pct":31.25,"note":""},{"contractor":"Nhà thầu 1","pkg":"GT02","item":"Nền đường","unit":"m2","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 1","pkg":"GT02","item":"Mặt đường","unit":"m2","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""},{"contractor":"Nhà thầu 1","pkg":"GT02","item":"Thoát nước mưa","unit":"md","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 1","pkg":"GT02","item":"Thoát nước thải","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":"dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd  dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd"},{"contractor":"Nhà thầu 1","pkg":"GT02","item":"Đường ống cấp nước","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""}],"issues":[{"item":"Đường tạm","issue":"Tại vị trí đường tạm thi công chưa giải phóng mặt bằng","proposal":"dịch chuyển vị trí đường tạm vào vị trí đã GPMB","dateRaised":"20/11/2025","status":"Đã xử lý","owner":"GPMB","dueDate":"27/12/2025"},{"item":"bể nước","issue":"chưa có thiết kế để thiicoong","proposal":"sớm có thiết kế để đơn vị thi công","dateRaised":"20/11/2026","status":"Chưa xử lý","owner":"Ban đầu tư","dueDate":"27/12/2026"}]},"Nhà thầu 2":{"reportItems":[{"contractor":"Nhà thầu 2","pkg":"GT03","item":"San nền","unit":"m3","contractQty":80,"prevCum":5,"thisWeek":20,"cum":25,"pct":31.25,"note":""},{"contractor":"Nhà thầu 2","pkg":"GT03","item":"Nền đường","unit":"m2","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":"dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd"},{"contractor":"Nhà thầu 2","pkg":"GT03","item":"Mặt đường","unit":"m2","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""},{"contractor":"Nhà thầu 2","pkg":"GT03","item":"Thoát nước mưa","unit":"md","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 2","pkg":"GT03","item":"Thoát nước thải","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""},{"contractor":"Nhà thầu 2","pkg":"GT03","item":"Đường ống cấp nước","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""}],"issues":[{"item":"Đường tạm","issue":"Tại vj trí xây dựng bể nước chưa giải phóng mặt bằng 1 lô đất","proposal":"kiến nghị bàn giao mặt bằng vào trước ngày 25/12/2025","dateRaised":"20/11/2027","status":"Đang xử lý","owner":"GPMB","dueDate":"27/12/2027"},{"item":"bể nước","issue":"chưa có nhà thầu để thi công","proposal":"sớm đấu thầu để có đơn vị thi công","dateRaised":"20/11/2028","status":"Hoàn thành","owner":"Ban đầu tư","dueDate":"27/12/2028"}]},"Nhà thầu 3":{"reportItems":[{"contractor":"Nhà thầu 3","pkg":"GT04","item":"San nền","unit":"m3","contractQty":80,"prevCum":5,"thisWeek":20,"cum":25,"pct":31.25,"note":"dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd"},{"contractor":"Nhà thầu 3","pkg":"GT04","item":"Nền đường","unit":"m2","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 3","pkg":"GT04","item":"Mặt đường","unit":"m2","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""},{"contractor":"Nhà thầu 3","pkg":"GT04","item":"Thoát nước mưa","unit":"md","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 3","pkg":"GT04","item":"Thoát nước thải","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""},{"contractor":"Nhà thầu 3","pkg":"GT04","item":"Đường ống cấp nước","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""}],"issues":[{"item":"Đường tạm","issue":"Tại vj trí xây dựng bể nước chưa giải phóng mặt bằng 1 lô đất","proposal":"kiến nghị bàn giao mặt bằng vào trước ngày 25/12/2025","dateRaised":"20/11/2027","status":"Đang xử lý","owner":"GPMB","dueDate":"27/12/2027"},{"item":"bể nước","issue":"chưa có nhà thầu để thi công","proposal":"sớm đấu thầu để có đơn vị thi công","dateRaised":"20/11/2028","status":"Hoàn thành","owner":"Ban đầu tư","dueDate":"27/12/2028"}]},"Nhà thầu 4":{"reportItems":[{"contractor":"Nhà thầu 4","pkg":"GT05","item":"San nền","unit":"m3","contractQty":80,"prevCum":5,"thisWeek":20,"cum":25,"pct":31.25,"note":""},{"contractor":"Nhà thầu 4","pkg":"GT05","item":"Nền đường","unit":"m2","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 4","pkg":"GT05","item":"Mặt đường","unit":"m2","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":"dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd"},{"contractor":"Nhà thầu 4","pkg":"GT05","item":"Thoát nước mưa","unit":"md","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 4","pkg":"GT05","item":"Thoát nước thải","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""},{"contractor":"Nhà thầu 4","pkg":"GT05","item":"Đường ống cấp nước","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""}],"issues":[{"item":"Đường tạm","issue":"Tại vj trí xây dựng bể nước chưa giải phóng mặt bằng 1 lô đất","proposal":"kiến nghị bàn giao mặt bằng vào trước ngày 25/12/2025","dateRaised":"20/11/2027","status":"Đang xử lý","owner":"GPMB","dueDate":"27/12/2027"},{"item":"bể nước","issue":"chưa có nhà thầu để thi công","proposal":"sớm đấu thầu để có đơn vị thi công","dateRaised":"20/11/2028","status":"Hoàn thành","owner":"Ban đầu tư","dueDate":"27/12/2028"}]},"Nhà thầu 5":{"reportItems":[{"contractor":"Nhà thầu 5","pkg":"GT06","item":"San nền","unit":"m3","contractQty":80,"prevCum":5,"thisWeek":20,"cum":25,"pct":31.25,"note":""},{"contractor":"Nhà thầu 5","pkg":"GT06","item":"Nền đường","unit":"m2","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 5","pkg":"GT06","item":"Mặt đường","unit":"m2","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""},{"contractor":"Nhà thầu 5","pkg":"GT06","item":"Thoát nước mưa","unit":"md","contractQty":80,"prevCum":10,"thisWeek":20,"cum":30,"pct":37.5,"note":""},{"contractor":"Nhà thầu 5","pkg":"GT06","item":"Thoát nước thải","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":"dassssss fsadfasdfsd fadsfsdfsad fasdfsa dfsadfsadf sdafsadfsadfa dsfasdfsda dsfasd"},{"contractor":"Nhà thầu 5","pkg":"GT06","item":"1111","unit":"m3","contractQty":100,"prevCum":90,"thisWeek":10,"cum":100,"pct":100,"note":""},{"contractor":"Nhà thầu 5","pkg":"GT06","item":"Đường ống cấp nước","unit":"md","contractQty":80,"prevCum":15,"thisWeek":20,"cum":35,"pct":43.75,"note":""}],"issues":[{"item":"Đường tạm","issue":"Tại vj trí xây dựng bể nước chưa giải phóng mặt bằng 1 lô đất","proposal":"kiến nghị bàn giao mặt bằng vào trước ngày 25/12/2025","dateRaised":"20/11/2027","status":"Đang xử lý","owner":"GPMB","dueDate":"27/12/2027"},{"item":"bể nước","issue":"chưa có nhà thầu để thi công","proposal":"sớm đấu thầu để có đơn vị thi công","dateRaised":"20/11/2028","status":"Hoàn thành","owner":"Ban đầu tư","dueDate":"27/12/2028"}]}},"overview":[{"contractor":"SEEN","pkg":"GT01","contractDays":365,"startDate":45638,"endDate":46003,"daysDone":345,"daysRemain":20,"ratio":0.20000000000000004},{"contractor":"Nhà thầu 1","pkg":"GT02","contractDays":240,"startDate":45638,"endDate":45878,"daysDone":345,"daysRemain":-105,"ratio":0.3958333333333333},{"contractor":"Nhà thầu 2","pkg":"GT03","contractDays":240,"startDate":45638,"endDate":45878,"daysDone":345,"daysRemain":-105,"ratio":0.3958333333333333},{"contractor":"Nhà thầu 3","pkg":"GT04","contractDays":240,"startDate":45638,"endDate":45878,"daysDone":345,"daysRemain":-105,"ratio":0.3958333333333333},{"contractor":"Nhà thầu 4","pkg":"GT05","contractDays":240,"startDate":45638,"endDate":45878,"daysDone":345,"daysRemain":-105,"ratio":0.3958333333333333},{"contractor":"Nhà thầu 5","pkg":"GT06","contractDays":240,"startDate":45638,"endDate":45878,"daysDone":345,"daysRemain":-105,"ratio":0.48214285714285715}],"documents":[{"name":"Trạm trộn bê tông xi măng Toàn phát","submitDate":"22/11/2024","status":"Đang xử lý","approvedDate":""},{"name":"Trạm trộn bê tông nhựa Toàn phát","submitDate":"22/11/2024","status":"Ý kiến lần 1","approvedDate":""},{"name":"Mỏ cung cấp đá Lan Chín","submitDate":"22/11/2024","status":"Đã hoàn thành","approvedDate":45424},{"name":"Mỏ cung cấp base Thành công","submitDate":"22/11/2024","status":"Ý liến lần 2","approvedDate":""},{"name":"Nhà cung cấp thép","submitDate":"22/11/2024","status":"Đang xử lý","approvedDate":""},{"name":"Nhà cung cấp cống AMACCAO","submitDate":"22/11/2024","status":"Đã hoàn thành","approvedDate":45424}]}</script>
+
+  <script>
+    let dataStore = { contractors: {}, overview: [], documents: [] };
+    let currentContractor = null;
+    let charts = [];
+
+    (function initReportDate() {
+      const span = document.getElementById('reportDate');
+      if (!span || span.textContent.trim()) return;
+      const t = new Date();
+      const dd = String(t.getDate()).padStart(2,'0');
+      const mm = String(t.getMonth()+1).padStart(2,'0');
+      const yyyy = t.getFullYear();
+      span.textContent = dd + '/' + mm + '/' + yyyy;
+    })();
+
+    document.getElementById('excelFile').addEventListener('change', handleFile, false);
+
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+
+        const sheetReport  = wb.Sheets['Báo cáo thi công'] || wb.Sheets[wb.SheetNames[0]];
+        const sheetIssues  = wb.Sheets['Vuong mac']        || wb.Sheets[wb.SheetNames[1]];
+        const sheetOverview= wb.Sheets['tổng quan']        || wb.Sheets['Tổng quan'];
+        const sheetDocs    = wb.Sheets['Tiến độ hồ sơ']    || wb.Sheets['Tien do ho so'];
+
+        parseReportSheet(sheetReport);
+        if (sheetIssues)   parseIssuesSheet(sheetIssues);
+        if (sheetOverview) parseOverviewSheet(sheetOverview);
+        if (sheetDocs)     parseDocsSheet(sheetDocs);
+
+        renderAll();
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function ensureContractor(name) {
+      if (!dataStore.contractors[name]) {
+        dataStore.contractors[name] = { reportItems: [], issues: [] };
+      }
+      return dataStore.contractors[name];
+    }
+
+    function parseReportSheet(sheet) {
+      dataStore.contractors = {};
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      let lastContractor = '';
+      let lastPkg = '';
+
+      for (let i = 3; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+
+        let contractor = r[0] ? String(r[0]).trim() : '';
+        if (!contractor && !lastContractor) continue;
+        if (!contractor) contractor = lastContractor;
+        lastContractor = contractor;
+
+        let pkg = r[1] ? String(r[1]).trim() : '';
+        if (!pkg && !lastPkg) pkg = '';
+        if (!pkg) pkg = lastPkg;
+        lastPkg = pkg;
+
+        const item = r[2] ? String(r[2]).trim() : '';
+        if (!item) continue;
+
+        const unit = r[3] ? String(r[3]).trim() : '';
+
+        const contractQty = Number(r[4]) || 0;
+        const prevCum     = Number(r[5]) || 0;
+        const thisWeek    = Number(r[6]) || 0;
+        let   cum         = Number(r[7]) || 0;
+        const note        = r[9] ? String(r[9]).trim() : '';
+
+        if (!cum && (prevCum || thisWeek)) cum = prevCum + thisWeek;
+
+        let pct = 0;
+        if (contractQty > 0 && cum >= 0) pct = (cum / contractQty) * 100;
+
+        const ct = ensureContractor(contractor);
+        ct.reportItems.push({ contractor, pkg, item, unit,
+                              contractQty, prevCum, thisWeek, cum, pct, note });
+      }
+    }
+
+    function parseIssuesSheet(sheet) {
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      let lastContractor = '';
+
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+
+        let contractor = r[0] ? String(r[0]).trim() : '';
+        if (!contractor && !lastContractor) continue;
+        if (!contractor) contractor = lastContractor;
+        lastContractor = contractor;
+
+        const item       = r[1] ? String(r[1]).trim() : '';
+        const issue      = r[2] ? String(r[2]).trim() : '';
+        const proposal   = r[3] ? String(r[3]).trim() : '';
+        const dateRaised = r[4] || '';
+        const status     = r[5] ? String(r[5]).trim() : '';
+        const owner      = r[6] ? String(r[6]).trim() : '';
+        const dueDate    = r[7] || '';
+
+        const ct = ensureContractor(contractor);
+        ct.issues.push({ item, issue, proposal, dateRaised, status, owner, dueDate });
+      }
+    }
+
+    function parseOverviewSheet(sheet) {
+      dataStore.overview = [];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+
+        const contractor = r[0] ? String(r[0]).trim() : '';
+        const pkg        = r[1] ? String(r[1]).trim() : '';
+        if (!contractor && !pkg) continue;
+
+        const contractDays = Number(r[2]) || 0;
+        const startDate    = r[3] || '';
+        const endDate      = r[4] || '';
+        const daysDone     = Number(r[5]) || 0;
+        const daysRemain   = Number(r[6]) || 0;
+        let ratio = 0;
+        if (typeof r[7] === 'number') ratio = r[7];
+        else if (r[7] !== '' && r[7] != null) ratio = Number(r[7]) || 0;
+
+        dataStore.overview.push({ contractor, pkg, contractDays,
+                                  startDate, endDate, daysDone, daysRemain, ratio });
+      }
+    }
+
+    function parseDocsSheet(sheet) {
+      dataStore.documents = [];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+
+        const name         = r[0] ? String(r[0]).trim() : '';
+        const submitDate   = r[1] || '';
+        const status       = r[2] ? String(r[2]).trim() : '';
+        const approvedDate = r[3] || '';
+
+        if (!name && !status) continue;
+        dataStore.documents.push({ name, submitDate, status, approvedDate });
+      }
+    }
+
+    function formatExcelDate(value) {
+      if (!value) return '';
+      if (value instanceof Date) {
+        const dd = String(value.getDate()).padStart(2,'0');
+        const mm = String(value.getMonth()+1).padStart(2,'0');
+        const yyyy = value.getFullYear();
+        return dd + '/' + mm + '/' + yyyy;
+      }
+      if (typeof value === 'number') {
+        const d = XLSX.SSF ? XLSX.SSF.parse_date_code(value) : null;
+        if (d) {
+          const dd = String(d.d).padStart(2,'0');
+          const mm = String(d.m).padStart(2,'0');
+          const yyyy = d.y;
+          return dd + '/' + mm + '/' + yyyy;
+        }
+      }
+      if (typeof value === 'string') {
+        const s = value.trim();
+        if (!s) return '';
+        if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) return s;
+        const dt = new Date(s);
+        if (!isNaN(dt.getTime())) {
+          const dd = String(dt.getDate()).padStart(2,'0');
+          const mm = String(dt.getMonth()+1).padStart(2,'0');
+          const yyyy = dt.getFullYear();
+          return dd + '/' + mm + '/' + yyyy;
+        }
+        return s;
+      }
+      return String(value);
+    }
+
+    function formatPercent(value) {
+      const num = typeof value === 'number' ? value : Number(value);
+      if (!isFinite(num)) return '';
+      const pct = num > 1.01 ? num : num * 100;
+      return pct.toFixed(1).replace(/\.0$/,'') + '%';
+    }
+
+    function renderAll() {
+      const contractors = Object.keys(dataStore.contractors);
+      const tabsEl = document.getElementById('tabs');
+      const contentEl = document.getElementById('contractor-content');
+      tabsEl.innerHTML = '';
+
+      const overviewTab = document.createElement('button');
+      overviewTab.className = 'tab active';
+      overviewTab.textContent = 'Tổng Quan - Hồ sơ';
+      overviewTab.addEventListener('click', () => {
+        currentContractor = null;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        overviewTab.classList.add('active');
+        renderOverviewTab();
+      });
+      tabsEl.appendChild(overviewTab);
+
+      contractors.forEach((name) => {
+        const btn = document.createElement('button');
+        btn.className = 'tab';
+        btn.textContent = name;
+        btn.addEventListener('click', () => {
+          currentContractor = name;
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          btn.classList.add('active');
+          renderContractor(name);
+        });
+        tabsEl.appendChild(btn);
+      });
+
+      if ((dataStore.overview && dataStore.overview.length) ||
+          (dataStore.documents && dataStore.documents.length)) {
+        renderOverviewTab();
+      } else if (contractors.length) {
+        overviewTab.classList.remove('active');
+        const firstContractorBtn = tabsEl.querySelectorAll('.tab')[1];
+        if (firstContractorBtn) firstContractorBtn.classList.add('active');
+        currentContractor = contractors[0];
+        renderContractor(currentContractor);
+      } else {
+        contentEl.innerHTML = '<p style="font-size:12px;color:var(--text-muted);margin:8px 4px;">Hãy nhập file Excel để xem báo cáo.</p>';
+      }
+    }
+
+    function renderOverviewTab() {
+      const contentEl = document.getElementById('contractor-content');
+      const overview = dataStore.overview || [];
+      const docs = dataStore.documents || [];
+
+      if (!overview.length && !docs.length) {
+        contentEl.innerHTML = '<p style="font-size:12px;color:var(--text-muted);margin:8px 4px;">Không có dữ liệu tổng quan. Hãy kiểm tra các sheet "tổng quan" và "Tiến độ hồ sơ" trong file Excel.</p>';
+        return;
+      }
+
+      let avgRatio = 0;
+      if (overview.length) {
+        let sumRatio = 0, countRatio = 0;
+        overview.forEach(o => {
+          if (typeof o.ratio === 'number' && isFinite(o.ratio) && o.ratio > 0) {
+            sumRatio += o.ratio; countRatio++;
+          }
+        });
+        avgRatio = countRatio ? (sumRatio / countRatio) : 0;
+      }
+
+      let totalDocs = docs.length, docsDone = 0, docsInProgress = 0, docsPending = 0;
+      docs.forEach(d => {
+        const s = (d.status || '').toLowerCase();
+        if (!s) docsPending++;
+        else if (s.includes('hoàn thành')) docsDone++;
+        else if (s.includes('đang') || s.includes('xử lý') || s.includes('xu ly')) docsInProgress++;
+        else docsPending++;
+      });
+
+      let html = '';
+
+      html += '<div class="summary-grid">';
+      html += '<div class="summary-card">'
+           +   '<div class="summary-label">Tiến độ hợp đồng</div>'
+           +   '<div class="summary-main-value">' + (overview.length ? formatPercent(avgRatio) : '--') + '</div>'
+           + '</div>';
+
+      html += '<div class="summary-card">'
+           +   '<div class="summary-label">Tiến độ hồ sơ</div>'
+           +   '<div class="summary-main-value">' + (totalDocs ? (docsDone + '/' + totalDocs + ' hồ sơ hoàn thành') : '--') + '</div>'
+           +   '<div class="summary-subtext">Đang xử lý: <strong>' + (docsInProgress || 0) + '</strong> &nbsp;|&nbsp; Chưa hoàn thành: <strong>' + (docsPending || 0) + '</strong></div>'
+           + '</div>';
+
+      html += '</div>';
+
+      if (overview.length) {
+        html += '<h2 style="font-size:14px;margin:12px 4px 6px;">Tổng quan tiến độ hợp đồng</h2>';
+        html += '<div class="table-wrapper"><table class="table-main"><thead><tr>'
+             +   '<th>STT</th>'
+             +   '<th>Nhà thầu</th>'
+             +   '<th>Gói thầu</th>'
+             +   '<th>Tiến độ HĐ (ngày)</th>'
+             +   '<th>Ngày khởi công</th>'
+             +   '<th>Ngày kết thúc</th>'
+             +   '<th>Ngày thực hiện</th>'
+             +   '<th>Ngày còn lại</th>'
+             +   '<th>Tỷ lệ hoàn thành</th>'
+             + '</tr></thead><tbody>';
+
+        overview.forEach((o, idx) => {
+          html += '<tr>'
+               +   '<td>' + (idx + 1) + '</td>'
+               +   '<td>' + (o.contractor || '') + '</td>'
+               +   '<td>' + (o.pkg || '') + '</td>'
+               +   '<td style="text-align:right;">' + (o.contractDays || '') + '</td>'
+               +   '<td>' + formatExcelDate(o.startDate) + '</td>'
+               +   '<td>' + formatExcelDate(o.endDate) + '</td>'
+               +   '<td style="text-align:right;">' + (o.daysDone || '') + '</td>'
+               +   '<td style="text-align:right;">' + (o.daysRemain || '') + '</td>'
+               +   '<td style="text-align:right;">' + (o.ratio ? formatPercent(o.ratio) : '') + '</td>'
+               + '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+      }
+
+      if (docs.length) {
+        html += '<h2 style="font-size:14px;margin:16px 4px 6px;">Tiến độ hồ sơ</h2>';
+        html += '<div class="table-wrapper"><table class="table-main"><thead><tr>'
+             +   '<th>STT</th>'
+             +   '<th>Tên hồ sơ</th>'
+             +   '<th>Ngày trình duyệt</th>'
+             +   '<th>Tình trạng</th>'
+             +   '<th>Ngày phê duyệt</th>'
+             + '</tr></thead><tbody>';
+
+        docs.forEach((d, idx) => {
+          html += '<tr>'
+               +   '<td>' + (idx + 1) + '</td>'
+               +   '<td>' + (d.name || '') + '</td>'
+               +   '<td>' + formatExcelDate(d.submitDate) + '</td>'
+               +   '<td>' + (d.status || '') + '</td>'
+               +   '<td>' + formatExcelDate(d.approvedDate) + '</td>'
+               + '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+      }
+
+      contentEl.innerHTML = html;
+    }
+
+    function getIssueTagClass(status) {
+      const s = (status || '').toLowerCase();
+      if (!s) return 'tag-open';
+      if (s.includes('chưa') || s.includes('open')) return 'tag-open';
+      if (s.includes('đang') || s.includes('progress')) return 'tag-progress';
+      return 'tag-closed';
+    }
+
+    function renderContractor(name) {
+      const data = dataStore.contractors[name];
+      if (!data) return;
+
+      const contentEl = document.getElementById('contractor-content');
+      const items = data.reportItems || [];
+
+      let totalContract = 0, totalCum = 0;
+      items.forEach(it => { totalContract += it.contractQty || 0; totalCum += it.cum || 0; });
+
+      const avgPct = totalContract > 0 ? (totalCum / totalContract) * 100 : 0;
+
+      const bands = Array(10).fill(0);
+      items.forEach(it => {
+        const p = it.pct || 0;
+        let idx = Math.floor(p / 10);
+        if (idx < 0) idx = 0;
+        if (idx > 9) idx = 9;
+        bands[idx]++;
+      });
+
+      const issues = data.issues || [];
+      const totalIssues = issues.length;
+      let issueOpen = 0, issueProgress = 0, issueClosed = 0;
+      issues.forEach(is => {
+        const cls = getIssueTagClass(is.status);
+        if (cls === 'tag-open') issueOpen++;
+        else if (cls === 'tag-progress') issueProgress++;
+        else issueClosed++;
+      });
+
+      const contractorName = name || 'Nhà thầu';
+
+      const firstRowBands  = bands.slice(0,5);
+      const secondRowBands = bands.slice(5,10);
+
+      let html = '';
+
+      html += '<div class="summary-grid">';
+      html += `
+        <div class="summary-card">
+          <div class="summary-label">Tiến độ trung bình</div>
+          <div class="summary-main-value">${avgPct.toFixed(1)}%</div>
+
+          <div class="card-subtitle">Mức độ hạng mục theo dải %</div>
+          <div class="bands-row">
+            ${firstRowBands.map((cnt, idx) => {
+              const from = idx * 10, to = (idx + 1) * 10;
+              return `<span class="chip">${from}-${to}%: <strong>${cnt}</strong></span>`;
+            }).join(' ')}
+          </div>
+          <div class="bands-row">
+            ${secondRowBands.map((cnt, idx) => {
+              const from = (idx + 5) * 10, to = (idx + 6) * 10;
+              return `<span class="chip">${from}-${to}%: <strong>${cnt}</strong></span>`;
+            }).join(' ')}
+          </div>
+
+          <div class="card-subtitle" style="margin-top:6px;">Tình trạng vướng mắc</div>
+          <div class="summary-main-value" style="font-size:18px;margin-bottom:2px;">${totalIssues}</div>
+          <div class="summary-subtext">
+            <span class="tag tag-open">Chưa xử lý: <strong>${issueOpen}</strong></span>
+            <span class="tag tag-progress">Đang xử lý: <strong>${issueProgress}</strong></span>
+            <span class="tag tag-closed">Đã xong: <strong>${issueClosed}</strong></span>
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div class="summary-label">Biểu đồ tiến độ tổng thể</div>
+          <div class="chart-split">
+            <div class="chart-half"><canvas id="chart-overall"></canvas></div>
+            <div class="chart-half"><canvas id="chart-status"></canvas></div>
+          </div>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-color" style="background:#06b6d4;"></span> Đã thực hiện</span>
+            <span class="legend-item"><span class="legend-color" style="background:#ef4444;"></span> Còn lại</span>
+          </div>
+        </div>
+      `;
+      html += '</div>';
+
+      html += `
+        <div class="details-grid">
+          <div class="card">
+            <div class="card-title">
+              <span>Chi tiết khối lượng - ${contractorName}</span>
+            </div>
+            <div class="filters-row">
+              <label>Gói thầu:
+                <select id="filterPkg"></select>
+              </label>
+              <label>Hạng mục:
+                <select id="filterItem"></select>
+              </label>
+              <label>Dải %:
+                <select id="filterBand">
+                  <option value="">Tất cả</option>
+                  <option value=">=90">≥ 90% (gần hoàn thành)</option>
+                  <option value="<50">&lt; 50% (chậm)</option>
+                </select>
+              </label>
+            </div>
+            <div class="table-wrapper">
+              <table class="table-main">
+                <thead>
+                  <tr>
+                    <th>Gói thầu</th>
+                    <th>Hạng mục</th>
+                    <th>Đơn vị</th>
+                    <th>KL HĐ</th>
+                    <th>Lũy kế trước</th>
+                    <th>Tuần này</th>
+                    <th>Lũy kế đến nay</th>
+                    <th>% hoàn thành</th>
+                    <th>Ghi chú</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-main"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+
+      html += `
+        <div class="details-grid" style="margin-top:10px;">
+          <div class="card">
+            <div class="card-title">
+              <span>Danh sách vướng mắc</span>
+              <span class="badge"><span class="badge-dot"></span> ${contractorName}</span>
+            </div>
+            <div class="table-wrapper">
+              <table class="table-main">
+                <thead>
+                  <tr>
+                    <th>Hạng mục</th>
+                    <th>Vướng mắc</th>
+                    <th>Kiến nghị</th>
+                    <th>Ngày phát sinh</th>
+                    <th>Trạng thái</th>
+                    <th>Đơn vị phụ trách</th>
+                    <th>Hạn giải quyết</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-issues"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+
+      contentEl.innerHTML = html;
+
+      const contractorsData = dataStore.contractors[name];
+      const pkgs = Array.from(new Set((contractorsData.reportItems || []).map(it => it.pkg || ''))).sort();
+      const pkgSelect = document.getElementById('filterPkg');
+      pkgSelect.innerHTML = '<option value="">Tất cả</option>' + pkgs.map(p => `<option value="${p}">${p || '(Không có)'}</option>`).join('');
+
+      const itemsSet = new Set();
+      (contractorsData.reportItems || []).forEach(it => { if (it.item) itemsSet.add(it.item); });
+      const itemsArr = Array.from(itemsSet).sort();
+      const itemSelect = document.getElementById('filterItem');
+      itemSelect.innerHTML = '<option value="">Tất cả</option>' + itemsArr.map(p => `<option value="${p}">${p}</option>`).join('');
+
+      function renderTable() {
+        const pkgFilter  = pkgSelect.value;
+        const itemFilter = itemSelect.value;
+        const bandFilter = document.getElementById('filterBand').value;
+
+        const tbody = document.getElementById('tbody-main');
+        tbody.innerHTML = '';
+
+        (contractorsData.reportItems || []).forEach(it => {
+          if (pkgFilter && it.pkg !== pkgFilter) return;
+          if (itemFilter && it.item !== itemFilter) return;
+          if (bandFilter === '>=90' && (it.pct || 0) < 90) return;
+          if (bandFilter === '<50' && (it.pct || 0) >= 50) return;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${it.pkg}</td>
+            <td>${it.item}</td>
+            <td>${it.unit}</td>
+            <td>${(it.contractQty || 0).toLocaleString('vi-VN')}</td>
+            <td>${(it.prevCum || 0).toLocaleString('vi-VN')}</td>
+            <td>${(it.thisWeek || 0).toLocaleString('vi-VN')}</td>
+            <td>${(it.cum || 0).toLocaleString('vi-VN')}</td>
+            <td>${(it.pct || 0).toFixed(1)}%</td>
+            <td><div class="note-cell">${it.note || ''}</div></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      renderTable();
+
+      pkgSelect.addEventListener('change', renderTable);
+      itemSelect.addEventListener('change', renderTable);
+      document.getElementById('filterBand').addEventListener('change', renderTable);
+
+      const issuesTbody = document.getElementById('tbody-issues');
+      issuesTbody.innerHTML = '';
+      (data.issues || []).forEach(is => {
+        const tr = document.createElement('tr');
+        const cls = getIssueTagClass(is.status);
+        tr.innerHTML = `
+          <td>${is.item || ''}</td>
+          <td>${is.issue || ''}</td>
+          <td>${is.proposal || ''}</td>
+          <td>${is.dateRaised || ''}</td>
+          <td><span class="tag ${cls}">${is.status || ''}</span></td>
+          <td>${is.owner || ''}</td>
+          <td>${is.dueDate || ''}</td>
+        `;
+        issuesTbody.appendChild(tr);
+      });
+
+      if (charts && charts.length) {
+        charts.forEach(ch => ch.destroy());
+        charts = [];
+      }
+
+      const ctxOverall = document.getElementById('chart-overall');
+      const ctxStatus  = document.getElementById('chart-status');
+
+      if (ctxOverall) {
+        const done = totalCum;
+        const remainVal = Math.max(0, totalContract - totalCum);
+        const doughnutChart = new Chart(ctxOverall, {
+          type: 'doughnut',
+          data: {
+            labels: ['Đã thực hiện', 'Còn lại'],
+            datasets: [{
+              data: [done, remainVal],
+              backgroundColor: ['#06b6d4', '#ef4444'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed || 0;
+                    return label + ': ' + value.toLocaleString('vi-VN');
+                  }
+                }
+              }
+            },
+            cutout: '65%'
+          }
+        });
+        charts.push(doughnutChart);
+      }
+
+      if (ctxStatus) {
+        const labels = [];
+        for (let i = 0; i < 10; i++) labels.push((i*10) + '-' + ((i+1)*10) + '%');
+        const barChart = new Chart(ctxStatus, {
+          type: 'bar',
+          data: { labels, datasets: [{ data: bands, backgroundColor:'#38bdf8', borderWidth:0 }] },
+          options: {
+            plugins: {
+              legend: { display:false },
+              tooltip: {
+                callbacks: { label: ctx => ctx.parsed.y + ' hạng mục' }
+              }
+            },
+            scales: {
+              x: { ticks:{ font:{ size:9 }}, grid:{ display:false } },
+              y: { beginAtZero:true, precision:0,
+                   grid:{ color:'rgba(148,163,184,0.35)' }, ticks:{ stepSize:1 } }
+            }
+          }
+        });
+        charts.push(barChart);
+      }
+    }
+
+    document.getElementById('btnExportExcel').addEventListener('click', () => {
+      const contractors = dataStore.contractors;
+      if (!Object.keys(contractors).length) {
+        alert('Chưa có dữ liệu. Hãy nhập file Excel trước.');
+        return;
+      }
+
+      const reportRows = [];
+      const issueRows  = [];
+
+      Object.values(contractors).forEach(ct => {
+        ct.reportItems.forEach(it => {
+          reportRows.push({
+            'Nhà thầu': it.contractor,
+            'Gói thầu': it.pkg,
+            'Hạng mục': it.item,
+            'Đơn vị': it.unit,
+            'KL HĐ': it.contractQty,
+            'Lũy kế trước': it.prevCum,
+            'Tuần này': it.thisWeek,
+            'Lũy kế đến nay': it.cum,
+            '% hoàn thành': it.pct,
+            'Ghi chú': it.note
+          });
+        });
+
+        ct.issues.forEach(is => {
+          issueRows.push({
+            'Nhà thầu': ct.reportItems[0]?.contractor || '',
+            'Hạng mục': is.item,
+            'Vướng mắc': is.issue,
+            'Kiến nghị': is.proposal,
+            'Ngày phát sinh': is.dateRaised,
+            'Trạng thái': is.status,
+            'Đơn vị phụ trách': is.owner,
+            'Hạn giải quyết': is.dueDate
+          });
+        });
+      });
+
+      const wb = XLSX.utils.book_new();
+      const wsReport = XLSX.utils.json_to_sheet(reportRows);
+      XLSX.utils.book_append_sheet(wb, wsReport, 'Bao_cao_thi_cong');
+      const wsIssue = XLSX.utils.json_to_sheet(issueRows);
+      XLSX.utils.book_append_sheet(wb, wsIssue, 'Vuong_mac');
+
+      XLSX.writeFile(wb, 'bao_cao_khoi_luong.xlsx');
+    });
+
+    document.getElementById('btnExportPdf').addEventListener('click', () => { window.print(); });
+
+    document.getElementById('btnExportHtml').addEventListener('click', () => {
+      if (!Object.keys(dataStore.contractors).length) {
+        alert('Chưa có dữ liệu. Hãy nhập file Excel trước.');
+        return;
+      }
+      const scriptTag = document.getElementById('embedded-data-json');
+      scriptTag.textContent = JSON.stringify(dataStore);
+
+      const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      const blob = new Blob([fullHtml], { type:'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bao_cao_khoi_luong_static.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('btnTheme').addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+    });
+
+    (function initFromEmbedded() {
+      const tag = document.getElementById('embedded-data-json');
+      const txt = tag ? tag.textContent.trim() : '';
+      if (!txt) return;
+      try {
+        const embedded = JSON.parse(txt);
+        if (embedded && embedded.contractors) {
+          dataStore = embedded;
+          renderAll();
+        }
+      } catch(e) {
+        console.warn('Không đọc được embedded data:', e);
+      }
+    })();
+  </script>
+
+
+</body></html>
